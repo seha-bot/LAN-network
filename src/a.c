@@ -18,7 +18,7 @@ void createNetwork(struct network *network, u_short port)
     network->socket = socket(AF_INET, SOCK_STREAM, 0);
     network->address.sin_family = AF_INET;
 
-    network->address.sin_addr.s_addr = inet_addr("192.168.0.255");
+    network->address.sin_addr.s_addr = inet_addr("192.168.196.22");
     network->address.sin_port = htons(port);
 }
 
@@ -139,14 +139,46 @@ int loop()
     return 0;
 }
 
+void getIP()
+{
+    char buff[200];
+    gethostname(buff, sizeof(buff));
+    printf("%s\n", buff);
+    struct hostent *phe = gethostbyname(buff);
+    for (int i = 0; phe->h_addr_list[i] != 0; ++i) {
+        struct in_addr addr;
+        memcpy(&addr, phe->h_addr_list[i], sizeof(struct in_addr));
+        printf("Address %d: %s\n", i, inet_ntoa(addr));
+    }
+}
+
+void broadcastIP()
+{
+    SOCKET sock;
+    sock = socket(AF_INET,SOCK_DGRAM,0);
+    char broadcast = '1';
+    setsockopt(sock,SOL_SOCKET,SO_BROADCAST,&broadcast,sizeof(broadcast));
+    struct sockaddr_in Recv_addr;
+    int len = sizeof(struct sockaddr_in);
+    char sendMSG[] ="Broadcast message from SLAVE TAG";
+    char recvbuff[50] = "";
+    int recvbufflen = 50;
+    Recv_addr.sin_family       = AF_INET;
+    Recv_addr.sin_port         = htons(8080);
+    Recv_addr.sin_addr.s_addr  = INADDR_BROADCAST;
+    sendto(sock,sendMSG,strlen(sendMSG)+1,0,(SOCKADDR *)&Recv_addr,sizeof(Recv_addr));
+    printf("%s\n", recvbuff);
+    closesocket(sock);
+}
+
 int main()
 {
-    // WSADATA wsa;
-    // if(WSAStartup(MAKEWORD(2,2),&wsa) != 0)
-    // {
-    //     printf("Winsock Failed. Error Code : %d",WSAGetLastError());
-    //     return 1;
-    // }
+    WSADATA wsa;
+    if(WSAStartup(MAKEWORD(2,2),&wsa) != 0)
+    {
+        printf("Winsock Failed. Error Code : %d",WSAGetLastError());
+        return 1;
+    }
     
     // createWindow("Window", WIDTH<<1, HEIGHT<<1);
     // if(!window) return 1;
@@ -155,86 +187,25 @@ int main()
     // start(loop);
     // return 0;
 
-        WSADATA wsaData;
-    WSAStartup(MAKEWORD(2,2), &wsaData);
+    // broadcastIP();
+    // return 0;
+
     SOCKET sock;
     sock = socket(AF_INET,SOCK_DGRAM,0);
     char broadcast = '1';
-    if(setsockopt(sock,SOL_SOCKET,SO_BROADCAST,&broadcast,sizeof(broadcast)) < 0)
-    {
-        printf("Error in setting Broadcast option");
-        closesocket(sock);
-        return 0;
-
-    }
-    struct sockaddr_in Recv_addr;  
+    setsockopt(sock,SOL_SOCKET,SO_BROADCAST,&broadcast,sizeof(broadcast));
+    struct sockaddr_in Recv_addr;
     struct sockaddr_in Sender_addr;
     int len = sizeof(struct sockaddr_in);
-    char sendMSG[] ="Broadcast message from SLAVE TAG";
-    char recvbuff[50] = "";
+    char recvbuff[50];
     int recvbufflen = 50;
+
     Recv_addr.sin_family       = AF_INET;        
-    Recv_addr.sin_port         = htons(8080);
- Recv_addr.sin_addr.s_addr  = INADDR_BROADCAST; // this isq equiv to 255.255.255.255
+    Recv_addr.sin_port         = htons(8080);   
+    Recv_addr.sin_addr.s_addr  = INADDR_ANY;
+    bind(sock,(SOCKADDR*)&Recv_addr, sizeof(Recv_addr));
 
-// better use subnet broadcast (for our subnet is 172.30.255.255)
-
-    // Recv_addr.sin_addr.s_addr = inet_addr("172.30.255.255");
-    sendto(sock,sendMSG,strlen(sendMSG)+1,0,(SOCKADDR *)&Recv_addr,sizeof(Recv_addr));
-    recvfrom(sock,recvbuff,recvbufflen,0,(SOCKADDR *)&Recv_addr,&len);
-    printf("%s\n", recvbuff);
-
+    recvfrom(sock,recvbuff,recvbufflen,0,(SOCKADDR*)&Sender_addr,&len);
+    printf("\n\n\tReceived Message is : %s", recvbuff);
     closesocket(sock);
-    WSACleanup();
-
-
-
-
-
-//     WSADATA wsaData;
-//     WSAStartup(MAKEWORD(2,2), &wsaData);
-//     SOCKET sock;
-//     sock = socket(AF_INET,SOCK_DGRAM,0);
-//     char broadcast = '1';
-// //     This option is needed on the socket in order to be able to receive broadcast messages
-// //   If not set the receiver will not receive broadcast messages in the local network.
-//     if(setsockopt(sock,SOL_SOCKET,SO_BROADCAST,&broadcast,sizeof(broadcast)) < 0)
-//     {
-//         printf("Error in setting Broadcast option");
-//         closesocket(sock);
-
-//         return 0;
-
-//     }
-
-//     struct sockaddr_in Recv_addr;
-//     struct sockaddr_in Sender_addr;
-//     int len = sizeof(struct sockaddr_in);
-//     char recvbuff[50];
-//     int recvbufflen = 50;
-//     char sendMSG[]= "Broadcast message from READER";
-
-//     Recv_addr.sin_family       = AF_INET;        
-//     Recv_addr.sin_port         = htons(8080);   
-//     Recv_addr.sin_addr.s_addr  = INADDR_ANY;
-
-//     if (bind(sock,(SOCKADDR*)&Recv_addr, sizeof (Recv_addr)) < 0)
-//     {
-//         printf("Error in BINDING. %d", WSAGetLastError());
-//         closesocket(sock);
-
-//         return 0;
-//     }
-
-//     recvfrom(sock,recvbuff,recvbufflen,0,(SOCKADDR *)&Sender_addr,&len);
-//     printf("\n\n\tReceived Message is : %s", recvbuff);
-
-//     if(sendto(sock,sendMSG,strlen(sendMSG)+1,0,(SOCKADDR *)&Sender_addr,sizeof(Sender_addr)) < 0)
-//     {
-//         printf("Error in Sending. %d", WSAGetLastError());
-//         closesocket(sock);
-//         return 0;
-//     }
-//     closesocket(sock);
-//     WSACleanup();
 }
