@@ -9,15 +9,15 @@
 
 struct network
 {
-    u_int socket;
+    SOCKET socket;
     struct sockaddr_in address;
 };
 
-void createNetwork(struct network *network, u_short port)
+void createTCPNetwork(struct network *network, u_short port)
 {
     network->socket = socket(AF_INET, SOCK_STREAM, 0);
-    network->address.sin_family = AF_INET;
 
+    network->address.sin_family = AF_INET;
     network->address.sin_addr.s_addr = inet_addr("192.168.196.22");
     network->address.sin_port = htons(port);
 }
@@ -63,7 +63,7 @@ int client_socket = 0;
 void h()
 {
     printf("HOST\n");
-    createNetwork(&network, 8080);
+    createTCPNetwork(&network, 8080);
     host(&network);
     client_socket = accept(network.socket, NULL, NULL);
     printf("accepted\n");
@@ -72,7 +72,7 @@ void h()
 void j()
 {
     printf("JOIN\n");
-    createNetwork(&network, 8080);
+    createTCPNetwork(&network, 8080);
     join(&network);
     connection = 2;
 }
@@ -139,39 +139,49 @@ int loop()
     return 0;
 }
 
-void getIP()
+void getIP(char* buff, unsigned int size)
 {
-    char buff[200];
-    gethostname(buff, sizeof(buff));
+    gethostname(buff, size);
     printf("%s\n", buff);
-    struct hostent *phe = gethostbyname(buff);
-    for (int i = 0; phe->h_addr_list[i] != 0; ++i) {
+    struct hostent *host = gethostbyname(buff);
+    for (int i = 0; host->h_addr_list[i] != 0; ++i) {
         struct in_addr addr;
-        memcpy(&addr, phe->h_addr_list[i], sizeof(struct in_addr));
-        printf("Address %d: %s\n", i, inet_ntoa(addr));
+        memcpy(&addr, host->h_addr_list[i], sizeof(struct in_addr));
+        sprintf(buff, "%s", inet_ntoa(addr));
     }
 }
-
-void broadcastIP()
+void createUDPNetwork(struct network *network, char broadcast)
 {
-    SOCKET sock;
-    sock = socket(AF_INET,SOCK_DGRAM,0);
-    char broadcast = '1';
-    setsockopt(sock,SOL_SOCKET,SO_BROADCAST,&broadcast,sizeof(broadcast));
-    struct sockaddr_in Recv_addr;
-    int len = sizeof(struct sockaddr_in);
-    char sendMSG[] ="Broadcast message from SLAVE TAG";
-    char recvbuff[50] = "";
-    int recvbufflen = 50;
-    Recv_addr.sin_family       = AF_INET;
-    Recv_addr.sin_port         = htons(8080);
-    Recv_addr.sin_addr.s_addr  = INADDR_BROADCAST;
-    sendto(sock,sendMSG,strlen(sendMSG)+1,0,(SOCKADDR *)&Recv_addr,sizeof(Recv_addr));
-    printf("%s\n", recvbuff);
-    closesocket(sock);
+    network->socket = socket(AF_INET,SOCK_DGRAM,0);
+    char mode = '1';
+    setsockopt(network->socket,SOL_SOCKET,SO_BROADCAST,&mode,sizeof(mode));
+
+    network->address.sin_family = AF_INET;
+    network->address.sin_port = htons(8080);
+    network->address.sin_addr.s_addr = broadcast ? INADDR_BROADCAST : INADDR_ANY;
+}
+void IP_broadcast()
+{
+    struct network network;
+    createUDPNetwork(&network, 1);
+    char buff[256];
+    getIP(buff, 256);
+    sendto(network.socket, buff, 256, 0, (SOCKADDR*)&network.address, sizeof(network.address));
+    closesocket(network.socket);
+}
+void IP_listen()
+{
+    struct network network;
+    createUDPNetwork(&network, 0);
+    bind(network.socket, (SOCKADDR*)&network.address, sizeof(network.address));
+
+    char buff[256];
+    recvfrom(network.socket, buff, 256, 0, 0, 0);
+    printf("\n\n\tReceived Message is : %s", buff);
+    closesocket(network.socket);
 }
 
-int main()
+int main(int argc, char** argv)
 {
     WSADATA wsa;
     if(WSAStartup(MAKEWORD(2,2),&wsa) != 0)
@@ -180,32 +190,10 @@ int main()
         return 1;
     }
     
-    // createWindow("Window", WIDTH<<1, HEIGHT<<1);
-    // if(!window) return 1;
-    // glPointSize(2.0);
+    createWindow("Window", WIDTH<<1, HEIGHT<<1);
+    if(!window) return 1;
+    glPointSize(2.0);
     
-    // start(loop);
-    // return 0;
-
-    // broadcastIP();
-    // return 0;
-
-    SOCKET sock;
-    sock = socket(AF_INET,SOCK_DGRAM,0);
-    char broadcast = '1';
-    setsockopt(sock,SOL_SOCKET,SO_BROADCAST,&broadcast,sizeof(broadcast));
-    struct sockaddr_in Recv_addr;
-    struct sockaddr_in Sender_addr;
-    int len = sizeof(struct sockaddr_in);
-    char recvbuff[50];
-    int recvbufflen = 50;
-
-    Recv_addr.sin_family       = AF_INET;        
-    Recv_addr.sin_port         = htons(8080);   
-    Recv_addr.sin_addr.s_addr  = INADDR_ANY;
-    bind(sock,(SOCKADDR*)&Recv_addr, sizeof(Recv_addr));
-
-    recvfrom(sock,recvbuff,recvbufflen,0,(SOCKADDR*)&Sender_addr,&len);
-    printf("\n\n\tReceived Message is : %s", recvbuff);
-    closesocket(sock);
+    start(loop);
+    return 0;
 }
