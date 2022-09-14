@@ -1,3 +1,6 @@
+#ifndef SEHA_MSG
+#define SEHA_MSG
+#include<str_utils.h>
 #include<stdio.h>
 
 /*TODO: Make actual maps with hashing for speed*/
@@ -46,17 +49,11 @@ void msg_encode(char map[][2][256], unsigned int size, char* out)
     out[c] = '\0';
 }
 
+/*TODO: BELOW FUNCTIONS ARE UNTESTED*/
+
 int msg_find(char* key, char map[][2][256], unsigned int size)
 {
-    for(int i = 0; i < size; i++)
-    {
-        int mc = 0;
-        int kc = 0;
-        while(1)
-        {
-            if(map[i][0][mc] == '\0') return i;
-            if(map[i][0][mc++] != key[kc++]) break;
-        }
-    }
+    for(int i = 0; i < size; i++) if(str_comp(map[i][0], key)) return i;
     return -1;
 }
+#endif

@@ -33,10 +33,8 @@ void button(char* s, void(*f)(), int x, int y, int w, int h)
     drawString(s, x+(w>>1)-tw, y+(h>>1)-th, 0);
 }
 
-
-
-
 char connection = 0; // 0 - undefined, 1 - lobby, 2 - awdiohpsiod
+char hostname[256];
 struct network network;
 int client_socket = 0;
 void h()
@@ -51,10 +49,11 @@ void j()
 }
 
 char buff[256];
-char servers[10][2][2][256];
+char servers[5][2][256]; //TODO: replace with nec
+int server_c = 0;
 int loop()
 {
-    switch (connection)
+    switch(connection)
     {
     case 0:
         /*MODE SELECT*/
@@ -63,41 +62,53 @@ int loop()
         break;
     case 1:
         /*LOBBY HOST*/
-        IP_broadcast("varchar");
+        IP_broadcast(hostname);
         line(0,0,WIDTH,HEIGHT,(int)((sin(glfwGetTime() * 10000.0) + 1) * 100.0) % 8 + 1);
         break;
     case 2:
         /*LOBBY JOIN*/
         buff[0]=0;
         IP_listen(buff, sizeof(buff));
-        char server[1][2][256];
-        msg_decode(buff, server);
-        if(strlen(buff)) printf("%s = %s\n", server[0][0], server[0][1]);
-        // printf("%s\n", buff);
-        line(0,0,WIDTH,HEIGHT,(int)((sin(glfwGetTime() * 10000.0) + 1) * 100.0) % 8 + 1);
+        char server[2][256];
+        msg_decode(buff, &server);
+        if(strlen(buff))
+        {
+            char contains = 0;
+            for(int i = 0; i < server_c; i++)
+            {
+                if(str_comp(servers[i][1], server[1]))
+                {
+                    contains = 1;
+                    break;
+                }
+            }
+            if(!contains && server_c < 5) memcpy(servers[server_c++], server, sizeof(server));
+        }
+        for(int i = 0; i < server_c; i++)
+        {
+            void a(){printf("hello %d\n", i);};
+            button(servers[i][0], a, HW-50, HEIGHT - i * 15 - (i+2) * 15, 100, 15);
+        }
+        void refresh(){server_c = 0;};
+        button("REFRESH", refresh, HW-30, HEIGHT - server_c * 15 - (server_c+2) * 15, 60, 15);
         break;
-    // case 1912:
-    //     drawString(msg, 0, len > 35 ? 8 : 0, 1);
-    //     button("SEND", s, WIDTH-40, 0, 40, 16);
-    //     line(0, 16, WIDTH, 16, 1);
-    //     for(int i = 0; i < wallLen; i++)
-    //     {
-    //         drawString(wall[i], 0, HEIGHT-(i+1)*8, 1);
-    //     }
-    //     r(connection == 1 ? client_socket : network.socket);
-    //     break;
     }
     return 0;
 }
 
+#include<str_utils.h>
 int main(int argc, char** argv)
 {
     WSADATA wsa;
     if(WSAStartup(MAKEWORD(2,2),&wsa) != 0)
     {
-        printf("Winsock Failed. Error Code : %d",WSAGetLastError());
+        printf("Winsock Failed. Error Code: %d", WSAGetLastError());
         return 1;
     }
+
+    printf("My name is: ");
+    scanf("%s", hostname);
+    str_upper(hostname);
     
     createWindow("Window", WIDTH<<1, HEIGHT<<1);
     if(!window) return 1;
@@ -106,23 +117,3 @@ int main(int argc, char** argv)
     start(loop);
     return 0;
 }
-
-
-/*
-TEST (DELETE)
-
-    char msg[256] = "name1:val1,name2:val2,";
-    char map[2][2][256] = {
-        {"name1", "val1"},
-        {"name2", "val2"},
-    };
-    char msgout[256];
-    char mapout[2][2][256];
-    msg_decode(msg, mapout);
-    msg_encode(map, 2, msgout);
-    printf("%s\n", msgout);
-    printf("%s\n", map[0][0]);
-    printf("%s\n", map[0][1]);
-    printf("%s\n", map[1][0]);
-    printf("%s\n", map[1][1]);
-*/

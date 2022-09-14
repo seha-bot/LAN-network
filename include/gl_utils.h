@@ -1,5 +1,5 @@
-#ifndef GL_INCLUDED
-#define GL_INCLUDED
+#ifndef GL_UTILS
+#define GL_UTILS
 #define GLAD_GL_IMPLEMENTATION
 #include<gl/gl.h>
 #define GLFW_INCLUDE_NONE
@@ -14,7 +14,7 @@ GLFWwindow *window = 0;
 // #define min(a, b) ((a) <= (b) ? (a) : (b))
 #define clamp(v, mi, ma) min(max(v, mi), ma)
 
-double time = 0.0, dt = 0.0, second = 0.0;
+double dt = 0.0, second = 0.0;
 int fps = 0;
 
 float Q_rsqrt( float number )
@@ -77,9 +77,8 @@ void start( int(*loop)() )
         double new_time = glfwGetTime();
         double a = new_time - last_time;
         if(a < 1.0 / 60.0) continue;
+        dt   = new_time - last_time;
         last_time = new_time;
-        dt   = new_time - time;
-        time = new_time;
 
         if(glfwWindowShouldClose(window) ||
         glfwGetKey(window, GLFW_KEY_ESCAPE)) break;
