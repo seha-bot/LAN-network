@@ -1,36 +1,12 @@
 #include<stdio.h>
-#include<winsock2.h>
+#include<math.h>
 #include<gl_utils.h>
+#include<LAN/lan.h>
 
 #define WIDTH 250
 #define HEIGHT 250
 #define HW 125
 #define HH 125
-
-struct network
-{
-    SOCKET socket;
-    struct sockaddr_in address;
-};
-
-void createTCPNetwork(struct network *network, u_short port)
-{
-    network->socket = socket(AF_INET, SOCK_STREAM, 0);
-
-    network->address.sin_family = AF_INET;
-    network->address.sin_addr.s_addr = inet_addr("192.168.196.22");
-    network->address.sin_port = htons(port);
-}
-
-void host(struct network *network)
-{
-    bind(network->socket, (struct sockaddr *) &network->address, sizeof(network->address));
-    listen(network->socket, SOMAXCONN);
-}
-void join(struct network *network)
-{
-    connect(network->socket, (struct sockaddr *) &network->address, sizeof(network->address));
-}
 
 void button(char* s, void(*f)(), int x, int y, int w, int h)
 {
@@ -57,128 +33,66 @@ void button(char* s, void(*f)(), int x, int y, int w, int h)
     drawString(s, x+(w>>1)-tw, y+(h>>1)-th, 0);
 }
 
-char connection = 0; // 0 - undefined, 1 - host, 2 - join
+
+
+
+char connection = 0; // 0 - undefined, 1 - lobby, 2 - awdiohpsiod
 struct network network;
 int client_socket = 0;
 void h()
 {
     printf("HOST\n");
-    createTCPNetwork(&network, 8080);
-    host(&network);
-    client_socket = accept(network.socket, NULL, NULL);
-    printf("accepted\n");
     connection = 1;
 }
 void j()
 {
     printf("JOIN\n");
-    createTCPNetwork(&network, 8080);
-    join(&network);
     connection = 2;
 }
 
-char msg[256];
-int len = 0;
-char wall[10][256];
-int wallLen = 0;
-void s()
-{
-    printf("SENT\n");
-    send(connection == 1 ? client_socket : network.socket, msg, sizeof(msg), 0);
-    sprintf(wall[wallLen++], "YOU = %s", msg);
-    len = 0;
-    msg[len] = '\0';
-}
-
-void r(unsigned int socket)
-{
-    unsigned long timeoutMs = 10;
-    setsockopt(socket, SOL_SOCKET, SO_RCVTIMEO, (const char*)&timeoutMs, sizeof(timeoutMs));
-    char msga[256];
-    int rec = recv(socket, msga, sizeof(msga), 0);
-    if(rec == 256)
-    {
-        sprintf(wall[wallLen++], "THEM = %s", msga);
-    }
-}
-
+char buff[256];
+char servers[10][2][2][256];
 int loop()
 {
-    if(!connection)
+    switch (connection)
     {
+    case 0:
+        /*MODE SELECT*/
         button("HOST", h, HW-20, HH, 40, 20);
         button("JOIN", j, HW-20, HH-30, 40, 20);
-    }
-    else
-    {
-        drawString(msg, 0, len > 35 ? 8 : 0, 1);
-        button("SEND", s, WIDTH-40, 0, 40, 16);
-        line(0, 16, WIDTH, 16, 1);
-        for(int i = 0; i < wallLen; i++)
+        break;
+    case 1:
+        /*LOBBY HOST*/
+        IP_broadcast();
+        line(0,0,WIDTH,HEIGHT,(int)((sin(glfwGetTime() * 10000.0) + 1) * 100.0) % 8 + 1);
+        break;
+    case 2:
+        /*LOBBY JOIN*/
+        IP_listen(buff, sizeof(buff));
+        char server[2][2][256];
+        msg_decode(buff, server);
+        int e1 = msg_find("name", server, 2);
+        int e2 = msg_find("ip", server, 2);
+        if(e1 >= 0 && e2 >= 0)
         {
-            drawString(wall[i], 0, HEIGHT-(i+1)*8, 1);
+            printf("HOST NAME = %s\n", server[e1][1]);
+            printf("IP = %s\n", server[e2][1]);
         }
-        r(connection == 1 ? client_socket : network.socket);
-    }
-    if(keys)
-    {   
-        if(keys[0] == GLFW_KEY_ENTER)
-        {
-            s();
-            return 0;
-        }
-        if(keys[0] != GLFW_KEY_BACKSPACE)
-        {
-            msg[len++] = keys[0];
-            if(len == 35) msg[len++] = '\n';
-        }
-        else len--;
-        len = clamp(len, 0, 71);
-        msg[len] = '\0';
+        // printf("%s\n", buff);
+        line(0,0,WIDTH,HEIGHT,(int)((sin(glfwGetTime() * 10000.0) + 1) * 100.0) % 8 + 1);
+        break;
+    // case 1912:
+    //     drawString(msg, 0, len > 35 ? 8 : 0, 1);
+    //     button("SEND", s, WIDTH-40, 0, 40, 16);
+    //     line(0, 16, WIDTH, 16, 1);
+    //     for(int i = 0; i < wallLen; i++)
+    //     {
+    //         drawString(wall[i], 0, HEIGHT-(i+1)*8, 1);
+    //     }
+    //     r(connection == 1 ? client_socket : network.socket);
+    //     break;
     }
     return 0;
-}
-
-void getIP(char* buff, unsigned int size)
-{
-    gethostname(buff, size);
-    printf("%s\n", buff);
-    struct hostent *host = gethostbyname(buff);
-    for (int i = 0; host->h_addr_list[i] != 0; ++i) {
-        struct in_addr addr;
-        memcpy(&addr, host->h_addr_list[i], sizeof(struct in_addr));
-        sprintf(buff, "%s", inet_ntoa(addr));
-    }
-}
-void createUDPNetwork(struct network *network, char broadcast)
-{
-    network->socket = socket(AF_INET,SOCK_DGRAM,0);
-    char mode = '1';
-    setsockopt(network->socket,SOL_SOCKET,SO_BROADCAST,&mode,sizeof(mode));
-
-    network->address.sin_family = AF_INET;
-    network->address.sin_port = htons(8080);
-    network->address.sin_addr.s_addr = broadcast ? INADDR_BROADCAST : INADDR_ANY;
-}
-void IP_broadcast()
-{
-    struct network network;
-    createUDPNetwork(&network, 1);
-    char buff[256];
-    getIP(buff, 256);
-    sendto(network.socket, buff, 256, 0, (SOCKADDR*)&network.address, sizeof(network.address));
-    closesocket(network.socket);
-}
-void IP_listen()
-{
-    struct network network;
-    createUDPNetwork(&network, 0);
-    bind(network.socket, (SOCKADDR*)&network.address, sizeof(network.address));
-
-    char buff[256];
-    recvfrom(network.socket, buff, 256, 0, 0, 0);
-    printf("\n\n\tReceived Message is : %s", buff);
-    closesocket(network.socket);
 }
 
 int main(int argc, char** argv)
@@ -197,3 +111,23 @@ int main(int argc, char** argv)
     start(loop);
     return 0;
 }
+
+
+/*
+TEST (DELETE)
+
+    char msg[256] = "name1:val1,name2:val2,";
+    char map[2][2][256] = {
+        {"name1", "val1"},
+        {"name2", "val2"},
+    };
+    char msgout[256];
+    char mapout[2][2][256];
+    msg_decode(msg, mapout);
+    msg_encode(map, 2, msgout);
+    printf("%s\n", msgout);
+    printf("%s\n", map[0][0]);
+    printf("%s\n", map[0][1]);
+    printf("%s\n", map[1][0]);
+    printf("%s\n", map[1][1]);
+*/
