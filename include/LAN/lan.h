@@ -7,12 +7,12 @@ struct network
     struct sockaddr_in address;
 };
 
-void createTCPNetwork(struct network *network, u_short port)
+void createTCPNetwork(struct network *network, char *ip, u_short port)
 {
     network->socket = socket(AF_INET, SOCK_STREAM, 0);
 
     network->address.sin_family = AF_INET;
-    network->address.sin_addr.s_addr = inet_addr("192.168.196.22");
+    network->address.sin_addr.s_addr = inet_addr(ip);
     network->address.sin_port = htons(port);
 }
 void host(struct network *network)
@@ -36,6 +36,26 @@ void createUDPNetwork(struct network *network, char broadcast)
     network->address.sin_port = htons(8080);
     network->address.sin_addr.s_addr = broadcast ? INADDR_BROADCAST : INADDR_ANY;
 }
+void UDP_broadcast(char* buff, unsigned int size)
+{
+    struct network network;
+    createUDPNetwork(&network, 1);
+    sendto(network.socket, buff, size, 0, (SOCKADDR*)&network.address, sizeof(network.address));
+    closesocket(network.socket);
+}
+void UDP_listen(char* buff, unsigned int size)
+{
+    struct network network;
+    createUDPNetwork(&network, 0);
+    bind(network.socket, (SOCKADDR*)&network.address, sizeof(network.address));
+
+    unsigned long timeoutMs = 10;
+    setsockopt(network.socket, SOL_SOCKET, SO_RCVTIMEO, (const char*)&timeoutMs, sizeof(timeoutMs));
+    recvfrom(network.socket, buff, size, 0, 0, 0);
+    closesocket(network.socket);
+}
+
+
 void getIP(char* buff, unsigned int size)
 {
     gethostname(buff, size);
@@ -49,24 +69,10 @@ void getIP(char* buff, unsigned int size)
 }
 void IP_broadcast(char* hostname)
 {
-    struct network network;
-    createUDPNetwork(&network, 1);
     char buff[512];
     char ip[256];
 
     getIP(ip, 256);
     sprintf(buff, "%s:%s,", hostname, ip);
-    sendto(network.socket, buff, 512, 0, (SOCKADDR*)&network.address, sizeof(network.address));
-    closesocket(network.socket);
-}
-void IP_listen(char* buff, unsigned int size)
-{
-    struct network network;
-    createUDPNetwork(&network, 0);
-    bind(network.socket, (SOCKADDR*)&network.address, sizeof(network.address));
-
-    unsigned long timeoutMs = 10;
-    setsockopt(network.socket, SOL_SOCKET, SO_RCVTIMEO, (const char*)&timeoutMs, sizeof(timeoutMs));
-    recvfrom(network.socket, buff, size, 0, 0, 0);
-    closesocket(network.socket);
+    UDP_broadcast(buff, 512);
 }
