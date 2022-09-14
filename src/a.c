@@ -63,21 +63,16 @@ int loop()
         break;
     case 1:
         /*LOBBY HOST*/
-        IP_broadcast();
+        IP_broadcast("varchar");
         line(0,0,WIDTH,HEIGHT,(int)((sin(glfwGetTime() * 10000.0) + 1) * 100.0) % 8 + 1);
         break;
     case 2:
         /*LOBBY JOIN*/
+        buff[0]=0;
         IP_listen(buff, sizeof(buff));
-        char server[2][2][256];
+        char server[1][2][256];
         msg_decode(buff, server);
-        int e1 = msg_find("name", server, 2);
-        int e2 = msg_find("ip", server, 2);
-        if(e1 >= 0 && e2 >= 0)
-        {
-            printf("HOST NAME = %s\n", server[e1][1]);
-            printf("IP = %s\n", server[e2][1]);
-        }
+        if(strlen(buff)) printf("%s = %s\n", server[0][0], server[0][1]);
         // printf("%s\n", buff);
         line(0,0,WIDTH,HEIGHT,(int)((sin(glfwGetTime() * 10000.0) + 1) * 100.0) % 8 + 1);
         break;

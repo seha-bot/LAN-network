@@ -43,17 +43,20 @@ void getIP(char* buff, unsigned int size)
     for (int i = 0; host->h_addr_list[i] != 0; ++i) {
         struct in_addr addr;
         memcpy(&addr, host->h_addr_list[i], sizeof(struct in_addr));
-        sprintf(buff, "name:test,ip:%s,", inet_ntoa(addr));
+        char* ip = inet_ntoa(addr);
+        memcpy(buff, ip, strlen(ip)+1);
     }
 }
-void IP_broadcast()
+void IP_broadcast(char* hostname)
 {
     struct network network;
     createUDPNetwork(&network, 1);
+    char buff[512];
+    char ip[256];
 
-    char buff[256];
-    getIP(buff, 256);
-    sendto(network.socket, buff, 256, 0, (SOCKADDR*)&network.address, sizeof(network.address));
+    getIP(ip, 256);
+    sprintf(buff, "%s:%s,", hostname, ip);
+    sendto(network.socket, buff, 512, 0, (SOCKADDR*)&network.address, sizeof(network.address));
     closesocket(network.socket);
 }
 void IP_listen(char* buff, unsigned int size)
@@ -62,6 +65,8 @@ void IP_listen(char* buff, unsigned int size)
     createUDPNetwork(&network, 0);
     bind(network.socket, (SOCKADDR*)&network.address, sizeof(network.address));
 
+    unsigned long timeoutMs = 10;
+    setsockopt(network.socket, SOL_SOCKET, SO_RCVTIMEO, (const char*)&timeoutMs, sizeof(timeoutMs));
     recvfrom(network.socket, buff, size, 0, 0, 0);
     closesocket(network.socket);
 }
