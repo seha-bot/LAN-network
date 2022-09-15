@@ -72,7 +72,7 @@ void IP_broadcast(char* hostname)
     char buff[512];
     char ip[256];
 
-    getIP(ip, 256);
+    getIP(ip, sizeof(ip));
     sprintf(buff, "%s:%s,", hostname, ip);
     UDP_broadcast(buff, 512);
 }

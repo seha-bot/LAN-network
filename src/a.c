@@ -37,56 +37,50 @@ char connection = 0; // 0 - undefined, finish me later
 char hostname[256];
 struct network network;
 int client_socket = 0;
-void h()
-{
-    printf("HOST\n");
-    connection = 1;
-}
-void j()
-{
-    printf("JOIN\n");
-    connection = 2;
-}
-
-
+char buff[256];
+char servers[5][2][256]; //TODO: replace with nec
+int server_c = 0;
 
 void s()
 {
     printf("SENT\n");
     send(client_socket, "hello", 6, 0);
 }
-
 void r(unsigned int socket)
 {
     unsigned long timeoutMs = 10;
     setsockopt(socket, SOL_SOCKET, SO_RCVTIMEO, (const char*)&timeoutMs, sizeof(timeoutMs));
-    char msga[256];
-    int rec = recv(socket, msga, sizeof(msga), 0);
+    int rec = recv(socket, buff, sizeof(buff), 0);
     if(rec == 6)
     {
-        printf("%s\n", msga);
+        printf("%s\n", buff);
     }
 }
 
+void btn_host() { connection = 1; }
+void btn_join() { connection = 2; }
+void btn_request_connection()
+{
+    createTCPNetwork(&network, buff, 8080);
+    sprintf(buff, "%s:request,", buff);
+    for(int i = 0; i < 300; i++) UDP_broadcast(buff, sizeof(buff));
+    join(&network);
+};
+void btn_refresh_servers() { server_c = 0; }
 
-
-
-char buff[256];
-char servers[5][2][256]; //TODO: replace with nec
-int server_c = 0;
 int loop()
 {
     switch(connection)
     {
     case 0:
         /*MODE SELECT*/
-        button("HOST", h, HW-20, HH, 40, 20);
-        button("JOIN", j, HW-20, HH-30, 40, 20);
+        button("HOST", btn_host, HW-20, HH, 40, 20);
+        button("JOIN", btn_join, HW-20, HH-30, 40, 20);
         break;
     case 1:
         /*LOBBY HOST*/
         buff[0]=0;
-        UDP_listen(buff, 256);
+        UDP_listen(buff, sizeof(buff));
         if(strlen(buff))
         {
             printf("%s\n", buff);
@@ -94,7 +88,7 @@ int loop()
             msg_decode(buff, &request);
             if(str_comp(request[1], "request"))
             {
-                getIP(buff, 256);
+                getIP(buff, sizeof(buff));
                 if(str_comp(request[0], buff))
                 {
                     createTCPNetwork(&network, buff, 8080);
@@ -129,17 +123,10 @@ int loop()
         }
         for(int i = 0; i < server_c; i++)
         {
-            void a()
-            {
-                sprintf(buff, "%s:request,", servers[i][1]);
-                for(int i = 0; i < 300; i++) UDP_broadcast(buff, 256);
-                createTCPNetwork(&network, servers[i][1], 8080);
-                join(&network);
-            };
-            button(servers[i][0], a, HW-50, HEIGHT - i * 15 - (i+2) * 15, 100, 15);
+            memcpy(buff, servers[i][1], 256);
+            button(servers[i][0], btn_request_connection, HW-50, HEIGHT - i * 15 - (i+2) * 15, 100, 15);
         }
-        void refresh(){server_c = 0;};
-        button("REFRESH", refresh, HW-30, HEIGHT - server_c * 15 - (server_c+2) * 15, 60, 15);
+        button("REFRESH", btn_refresh_servers, HW-30, HEIGHT - server_c * 15 - (server_c+2) * 15, 60, 15);
         r(network.socket);
         break;
     case 3:
