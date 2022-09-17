@@ -33,7 +33,7 @@ void button(char* s, void(*f)(), int x, int y, int w, int h)
     drawString(s, x+(w>>1)-tw, y+(h>>1)-th, 0);
 }
 
-char connection = 0; // 0 - undefined, finish me later
+char connection = 0;
 char hostname[256];
 struct network network;
 int client_socket = 0;
@@ -41,20 +41,19 @@ char buff[256];
 char servers[5][2][256]; //TODO: replace with nec
 int server_c = 0;
 
-void s()
+void Treba_Mi_Ime_Za_Ovu_Funkciju(SOCKET socket, char* inBuff, unsigned int inSize, char* outBuff, unsigned int outSize)
 {
-    printf("SENT\n");
-    send(client_socket, "hello", 6, 0);
-}
-void r(unsigned int socket)
-{
-    unsigned long timeoutMs = 10;
-    setsockopt(socket, SOL_SOCKET, SO_RCVTIMEO, (const char*)&timeoutMs, sizeof(timeoutMs));
-    int rec = recv(socket, buff, sizeof(buff), 0);
-    if(rec == 6)
+    if(inSize)
     {
-        printf("%s\n", buff);
+        unsigned long timeoutMs = 10;
+        setsockopt(socket, SOL_SOCKET, SO_RCVTIMEO, (const char*)&timeoutMs, sizeof(timeoutMs));
+        int rec = recv(socket, inBuff, inSize, 0);
+        if(rec == inSize)
+        {
+            printf("%s\n", inBuff);
+        }
     }
+    if(outSize) send(socket, outBuff, outSize, 0);
 }
 
 void btn_host() { connection = 1; }
@@ -83,7 +82,6 @@ int loop()
         UDP_listen(buff, sizeof(buff));
         if(strlen(buff))
         {
-            printf("%s\n", buff);
             char request[2][256];
             msg_decode(buff, &request);
             if(str_comp(request[1], "request"))
@@ -94,12 +92,19 @@ int loop()
                     createTCPNetwork(&network, buff, 8080);
                     host(&network);
                     client_socket = accept(network.socket, NULL, NULL);
-                    connection = 3;
                 }
             }
         }
-
         IP_broadcast(hostname);
+        
+        if(client_socket)
+        {
+            buff[0] = 'H';
+            buff[1] = 'I';
+            buff[2] = '\0';
+            Treba_Mi_Ime_Za_Ovu_Funkciju(client_socket, 0, 0, buff, sizeof(buff));
+        }
+
         line(0,0,WIDTH,HEIGHT,(int)((sin(glfwGetTime() * 10000.0) + 1) * 100.0) % 8 + 1);
         break;
     case 2:
@@ -127,10 +132,7 @@ int loop()
             button(servers[i][0], btn_request_connection, HW-50, HEIGHT - i * 15 - (i+2) * 15, 100, 15);
         }
         button("REFRESH", btn_refresh_servers, HW-30, HEIGHT - server_c * 15 - (server_c+2) * 15, 60, 15);
-        r(network.socket);
-        break;
-    case 3:
-        s();
+        Treba_Mi_Ime_Za_Ovu_Funkciju(network.socket, buff, sizeof(buff), 0, 0);
         break;
     }
     return 0;
