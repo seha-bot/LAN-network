@@ -24,7 +24,17 @@ void join(struct network *network)
 {
     connect(network->socket, (struct sockaddr *) &network->address, sizeof(network->address));
 }
-
+void Treba_Mi_Ime_Za_Ovu_Funkciju(SOCKET socket, char* inBuff, unsigned int inSize, char* outBuff, unsigned int outSize)
+{
+    if(outSize) send(socket, outBuff, outSize, 0);
+    if(inSize)
+    {
+        unsigned long timeoutMs = 0;
+        setsockopt(socket, SOL_SOCKET, SO_RCVTIMEO, (const char*)&timeoutMs, sizeof(timeoutMs));
+        int rec = recv(socket, inBuff, inSize, 0);
+        if(rec != inSize) inBuff[0] = '\0';
+    }
+}
 
 void createUDPNetwork(struct network *network, char broadcast)
 {

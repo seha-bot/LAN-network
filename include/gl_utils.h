@@ -5,13 +5,18 @@
 #define GLFW_INCLUDE_NONE
 #include<gl/glfw3.h>
 #include<stdio.h>
+#include<str_utils.h>
 #include<nec.h>
 GLFWwindow *window = 0;
 #include<input.h>
 
+#undef swap
+#undef max
+#undef min
+#undef clamp
 #define swap(a, b) (a += b, b = a - b, a -= b)
-// #define max(a, b) ((a) >= (b) ? (a) : (b))
-// #define min(a, b) ((a) <= (b) ? (a) : (b))
+#define max(a, b) ((a) >= (b) ? (a) : (b))
+#define min(a, b) ((a) <= (b) ? (a) : (b))
 #define clamp(v, mi, ma) min(max(v, mi), ma)
 
 double dt = 0.0, second = 0.0;
